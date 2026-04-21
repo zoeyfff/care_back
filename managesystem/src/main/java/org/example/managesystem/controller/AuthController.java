@@ -7,6 +7,7 @@ import org.example.managesystem.dto.LoginTokenVo;
 import org.example.managesystem.dto.UserInfoVo;
 import org.example.managesystem.security.JwtUtil;
 import org.example.managesystem.security.LoginUser;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,10 +27,12 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final JdbcTemplate jdbcTemplate;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil) {
+    public AuthController(AuthenticationManager authenticationManager, JwtUtil jwtUtil, JdbcTemplate jdbcTemplate) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @PostMapping("/login")
@@ -79,9 +82,21 @@ public class AuthController {
         List<String> permissions = user.getAuthorities().stream()
                 .map(a -> a.getAuthority())
                 .collect(Collectors.toList());
+        List<String> roleCodes = jdbcTemplate.queryForList(
+                "SELECT r.role_code FROM user_role ur " +
+                        "JOIN role r ON ur.role_id = r.id " +
+                        "WHERE ur.user_id = ? AND r.role_code IS NOT NULL",
+                String.class,
+                user.getId()
+        ).stream()
+                .filter(s -> s != null && !s.trim().isEmpty())
+                .map(s -> s.trim().toUpperCase())
+                .distinct()
+                .collect(Collectors.toList());
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("user", vo);
         data.put("permissions", permissions);
+        data.put("roleCodes", roleCodes);
         return ApiResponse.success(data);
     }
 }
