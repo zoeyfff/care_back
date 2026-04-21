@@ -8,17 +8,18 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("medication_record")
-public class MedicationRecord {
+@TableName("room")
+public class Room {
     @TableId(type = IdType.AUTO)
     private Long id;
-    private Long elderId;
-    private String medicineName;
-    private String dosage;
-    private LocalDateTime takeTime;
-    private String remark;
+    private String building;
+    private Integer floor;
+    private String roomNo;
+    private String roomType;
+    private Integer bedTotal;
+    private Integer bedOccupied;
     private Integer status;
-    private Long executeUser;
-    private LocalDateTime executeTime;
+    private String remark;
     private LocalDateTime createTime;
 }
+

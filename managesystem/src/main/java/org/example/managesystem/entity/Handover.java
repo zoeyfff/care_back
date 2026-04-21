@@ -5,20 +5,20 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("medication_record")
-public class MedicationRecord {
+@TableName("handover")
+public class Handover {
     @TableId(type = IdType.AUTO)
     private Long id;
-    private Long elderId;
-    private String medicineName;
-    private String dosage;
-    private LocalDateTime takeTime;
-    private String remark;
-    private Integer status;
-    private Long executeUser;
-    private LocalDateTime executeTime;
+    private LocalDate shiftDate;
+    private String shift;
+    private Long fromId;
+    private Long toId;
+    private String content;
+    private Integer readStatus;
     private LocalDateTime createTime;
 }
+

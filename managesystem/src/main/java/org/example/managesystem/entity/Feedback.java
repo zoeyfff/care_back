@@ -13,6 +13,7 @@ public class Feedback {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
+    private String familyName;
     private String content;
     private String reply;
     private Integer status;

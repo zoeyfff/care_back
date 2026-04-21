@@ -49,6 +49,9 @@ public class MedicationRecordController {
 
     @PostMapping
     public ApiResponse<Map<String, Object>> add(@RequestBody MedicationRecord record) {
+        if (record.getStatus() == null) {
+            record.setStatus(0);
+        }
         medicationRecordMapper.insert(record);
         return ApiResponse.success(toRow(record.getId()));
     }
