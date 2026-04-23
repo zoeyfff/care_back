@@ -1,4 +1,4 @@
-package org.example.managesystem.controller;
+package org.example.managesystem.controller.nurse;
 
 import org.example.managesystem.common.ApiCodes;
 import org.example.managesystem.common.ApiResponse;
@@ -14,93 +14,88 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
-@RequestMapping("/api/health-records")
-public class HealthRecordController {
+@RequestMapping("/api/nurse")
+public class NurseHealthRecordController {
 
+    private final JdbcTemplate jdbcTemplate;
     private final HealthRecordMapper healthRecordMapper;
     private final ElderMapper elderMapper;
-    private final JdbcTemplate jdbcTemplate;
 
-    public HealthRecordController(HealthRecordMapper healthRecordMapper, ElderMapper elderMapper, JdbcTemplate jdbcTemplate) {
+    public NurseHealthRecordController(JdbcTemplate jdbcTemplate,
+                                       HealthRecordMapper healthRecordMapper,
+                                       ElderMapper elderMapper) {
+        this.jdbcTemplate = jdbcTemplate;
         this.healthRecordMapper = healthRecordMapper;
         this.elderMapper = elderMapper;
-        this.jdbcTemplate = jdbcTemplate;
     }
 
-    @GetMapping
-    public ApiResponse<Map<String, Object>> list(
+    @GetMapping("/health-records")
+    public ApiResponse<Map<String, Object>> myHealthRecords(
             @RequestParam(value = "elder_id", required = false) Long elderId,
-            @RequestParam(value = "recorded_by", required = false) Long recordedBy,
-            @RequestParam(value = "room_no", required = false) String roomNo,
-            @RequestParam(value = "start_time", required = false) String startTime,
-            @RequestParam(value = "end_time", required = false) String endTime,
-            @RequestParam(value = "startTime", required = false) String startTimeCompat,
-            @RequestParam(value = "endTime", required = false) String endTimeCompat) {
-        if ((startTime == null || startTime.trim().isEmpty()) && startTimeCompat != null) {
-            startTime = startTimeCompat;
+            @RequestParam(value = "startTime", required = false) String startTime,
+            @RequestParam(value = "endTime", required = false) String endTime
+    ) {
+        LoginUser user = currentUser();
+        if (user == null) {
+            return ApiResponse.fail(ApiCodes.UNAUTHORIZED, "未登录");
         }
-        if ((endTime == null || endTime.trim().isEmpty()) && endTimeCompat != null) {
-            endTime = endTimeCompat;
+        Set<String> allRooms = new HashSet<>();
+        allRooms.addAll(jdbcTemplate.queryForList(
+                "SELECT room_no FROM room_nurse_template WHERE nurse_id = ?", String.class, user.getId()));
+        allRooms.addAll(jdbcTemplate.queryForList(
+                "SELECT room_no FROM room WHERE default_nurse_id = ?", String.class, user.getId()));
+
+        if (allRooms.isEmpty()) {
+            return ApiResponse.success(ListPage.of(java.util.Collections.emptyList(), 0));
         }
+        String placeholders = String.join(",", allRooms.stream().map(r -> "?").toArray(String[]::new));
+
         StringBuilder sql = new StringBuilder(
-                "SELECT hr.id, hr.elder_id, hr.temperature, hr.blood_pressure, hr.heart_rate, "
-                        + "DATE_FORMAT(hr.record_time, '%Y-%m-%d %H:%i:%s') AS record_time, "
-                        + "hr.recorded_by, hr.recorded_by_name, hr.abnormal_flag, hr.follow_up_action, "
-                        + "DATE_FORMAT(hr.create_time, '%Y-%m-%d %H:%i:%s') AS create_time, "
-                        + "e.name AS elder_name FROM health_record hr "
-                        + "LEFT JOIN elder e ON hr.elder_id = e.id WHERE 1=1");
-        List<Object> args = new ArrayList<>();
+                "SELECT hr.id, hr.elder_id, e.name AS elder_name, hr.temperature, hr.blood_pressure, hr.heart_rate, " +
+                        "DATE_FORMAT(hr.record_time, '%Y-%m-%d %H:%i:%s') AS record_time, " +
+                        "hr.recorded_by, hr.recorded_by_name, hr.abnormal_flag, hr.follow_up_action, " +
+                        "DATE_FORMAT(hr.create_time, '%Y-%m-%d %H:%i:%s') AS create_time " +
+                        "FROM health_record hr LEFT JOIN elder e ON hr.elder_id = e.id " +
+                        "WHERE e.room_no IN (" + placeholders + ")"
+        );
+        List<Object> args = new ArrayList<>(allRooms);
         if (elderId != null) {
             sql.append(" AND hr.elder_id = ?");
             args.add(elderId);
         }
-        if (roomNo != null && !roomNo.trim().isEmpty()) {
-            sql.append(" AND e.room_no = ?");
-            args.add(roomNo.trim());
-        }
-        if (recordedBy != null) {
-            sql.append(" AND hr.recorded_by = ?");
-            args.add(recordedBy);
-        }
-        if (startTime != null && !startTime.isEmpty()) {
+        if (startTime != null && !startTime.trim().isEmpty()) {
             sql.append(" AND hr.record_time >= ?");
-            args.add(startTime);
+            args.add(startTime.trim());
         }
-        if (endTime != null && !endTime.isEmpty()) {
+        if (endTime != null && !endTime.trim().isEmpty()) {
             sql.append(" AND hr.record_time <= ?");
-            args.add(endTime);
+            args.add(endTime.trim());
         }
         sql.append(" ORDER BY hr.record_time DESC, hr.id DESC");
         List<Map<String, Object>> list = jdbcTemplate.queryForList(sql.toString(), args.toArray());
         return ApiResponse.success(ListPage.of(list, list.size()));
     }
 
-    @PostMapping
+    @PostMapping("/health-records")
     public ApiResponse<Map<String, Object>> add(@RequestBody HealthRecord record) {
         LoginUser user = currentUser();
-        if (record.getElderId() != null && record.getRoomNo() != null && !record.getRoomNo().trim().isEmpty()) {
-            Integer matched = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM elder WHERE id = ? AND room_no = ?",
-                    Integer.class,
-                    record.getElderId(),
-                    record.getRoomNo().trim()
-            );
-            if (matched == null || matched <= 0) {
-                return ApiResponse.fail(ApiCodes.BAD_REQUEST, "elder_id 与 room_no 不匹配");
-            }
+        if (user == null) {
+            return ApiResponse.fail(ApiCodes.UNAUTHORIZED, "未登录");
         }
-        if (record.getRecordedBy() == null && record.getElderId() != null) {
+        if (record.getElderId() != null) {
             Map<String, Object> nurse = roomDefaultNurse(record.getElderId());
             if (nurse != null) {
                 record.setRecordedBy((Long) nurse.get("nurse_id"));
                 record.setRecordedByName((String) nurse.get("nurse_name"));
             }
         }
-        if (record.getRecordedBy() == null && user != null) {
+        if (record.getRecordedBy() == null) {
             record.setRecordedBy(user.getId());
             record.setRecordedByName(user.getRealName() == null ? user.getUsername() : user.getRealName());
         }
@@ -113,12 +108,12 @@ public class HealthRecordController {
 
     private Map<String, Object> toRow(Long id) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT hr.id, hr.elder_id, hr.temperature, hr.blood_pressure, hr.heart_rate, "
-                        + "DATE_FORMAT(hr.record_time, '%Y-%m-%d %H:%i:%s') AS record_time, "
-                        + "hr.recorded_by, hr.recorded_by_name, hr.abnormal_flag, hr.follow_up_action, "
-                        + "DATE_FORMAT(hr.create_time, '%Y-%m-%d %H:%i:%s') AS create_time, "
-                        + "e.name AS elder_name FROM health_record hr "
-                        + "LEFT JOIN elder e ON hr.elder_id = e.id WHERE hr.id = ?",
+                "SELECT hr.id, hr.elder_id, hr.temperature, hr.blood_pressure, hr.heart_rate, " +
+                        "DATE_FORMAT(hr.record_time, '%Y-%m-%d %H:%i:%s') AS record_time, " +
+                        "hr.recorded_by, hr.recorded_by_name, hr.abnormal_flag, hr.follow_up_action, " +
+                        "DATE_FORMAT(hr.create_time, '%Y-%m-%d %H:%i:%s') AS create_time, " +
+                        "e.name AS elder_name FROM health_record hr " +
+                        "LEFT JOIN elder e ON hr.elder_id = e.id WHERE hr.id = ?",
                 id
         );
         if (rows.isEmpty()) {

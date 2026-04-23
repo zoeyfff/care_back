@@ -19,6 +19,8 @@ public class Room {
     private Integer bedTotal;
     private Integer bedOccupied;
     private Integer status;
+    private Long defaultNurseId;
+    private String defaultNurseName;
     private String remark;
     private LocalDateTime createTime;
 }

@@ -15,8 +15,14 @@ public class MedicationRecord {
     private Long elderId;
     private String medicineName;
     private String dosage;
+    private String frequency;
     private LocalDateTime takeTime;
     private String remark;
+    private Integer needConfirm;
+    private Long confirmBy;
+    private String confirmByName;
+    private LocalDateTime confirmTime;
+    private String rejectReason;
     private Integer status;
     private Long executeUser;
     private LocalDateTime executeTime;
