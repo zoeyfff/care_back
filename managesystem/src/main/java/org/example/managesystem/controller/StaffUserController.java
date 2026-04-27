@@ -23,7 +23,7 @@ public class StaffUserController {
     @GetMapping("/api/users")
     public ApiResponse<Map<String, Object>> users() {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                "SELECT u.id, u.username, u.real_name, u.phone, u.status, "
+                "SELECT u.id, u.username, u.real_name, u.phone, u.email, u.status, "
                         + "DATE_FORMAT(u.create_time, '%Y-%m-%d %H:%i:%s') AS create_time "
                         + "FROM `user` u ORDER BY u.id"
         );
@@ -50,9 +50,11 @@ public class StaffUserController {
         String realName = rn == null ? null : String.valueOf(rn);
         Object ph = body.get("phone");
         String phone = ph == null ? null : String.valueOf(ph);
+        Object em = body.get("email");
+        String email = em == null ? null : String.valueOf(em);
         jdbcTemplate.update(
-                "INSERT INTO `user`(username, password, real_name, phone, status) VALUES (?, ?, ?, ?, 1)",
-                username, passwordEncoder.encode(password), realName, phone
+                "INSERT INTO `user`(username, password, real_name, phone, email, status) VALUES (?, ?, ?, ?, ?, 1)",
+                username, passwordEncoder.encode(password), realName, phone, email
         );
         return ApiResponse.success();
     }
