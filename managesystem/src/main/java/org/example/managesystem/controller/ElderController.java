@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.example.managesystem.common.ApiCodes;
 import org.example.managesystem.common.ApiResponse;
 import org.example.managesystem.common.ListPage;
+import org.example.managesystem.dto.ElderCheckoutDto;
 import org.example.managesystem.dto.ElderExcelRow;
 import org.example.managesystem.entity.Elder;
 import org.example.managesystem.mapper.ElderMapper;
@@ -75,6 +76,20 @@ public class ElderController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         elderMapper.deleteById(id);
         return ApiResponse.success();
+    }
+
+    @PostMapping("/{id}/checkout")
+    public ApiResponse<Elder> checkout(@PathVariable Long id, @RequestBody ElderCheckoutDto dto) {
+        Elder elder = elderMapper.selectById(id);
+        if (elder == null) {
+            return ApiResponse.fail(ApiCodes.NOT_FOUND, "长者档案不存在");
+        }
+        elder.setStatus("已出院");
+        elder.setCheckoutDate(dto.getCheckoutDate());
+        elder.setCheckoutReason(dto.getCheckoutReason());
+        elder.setCheckoutRemark(dto.getCheckoutRemark());
+        elderMapper.updateById(elder);
+        return ApiResponse.success(elderMapper.selectById(id));
     }
 
     @PostMapping("/import")

@@ -25,4 +25,9 @@ public class Elder {
     private String bedNo;
     private LocalDate checkinDate;
     private LocalDateTime createTime;
+    /** 状态：null/空=在院，'已出院'=已出院 */
+    private String status;
+    private LocalDate checkoutDate;
+    private String checkoutReason;
+    private String checkoutRemark;
 }

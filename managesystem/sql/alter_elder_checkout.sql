@@ -1,0 +1,5 @@
+-- 出院功能：新增 status / checkout_date / checkout_reason / checkout_remark 字段
+-- ALTER TABLE elder ADD COLUMN status VARCHAR(20) DEFAULT NULL COMMENT '状态：已出院' AFTER create_time;
+-- ALTER TABLE elder ADD COLUMN checkout_date DATE DEFAULT NULL COMMENT '出院日期' AFTER status;
+-- ALTER TABLE elder ADD COLUMN checkout_reason VARCHAR(50) DEFAULT NULL COMMENT '出院原因' AFTER checkout_date;
+-- ALTER TABLE elder ADD COLUMN checkout_remark VARCHAR(300) DEFAULT NULL COMMENT '出院备注' AFTER checkout_reason;
